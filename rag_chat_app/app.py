@@ -144,7 +144,7 @@ if query_string := st.chat_input("请输入具体问题："):
     # 首次提问，自动重命名标题
     if current_session["title"] == "🆕 新建会话":
 
-        new_title = query_string[:12] + "..." if len(query_string) > 12 else query_string 
+        new_title = query_string[:5] + "..." if len(query_string) > 5 else query_string 
         sm.update_current_session_title(new_title)
 
     # 提取格式化历史，屏蔽系统欢迎语
