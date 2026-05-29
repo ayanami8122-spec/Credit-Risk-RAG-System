@@ -1,0 +1,6 @@
+.env
+chroma_db/
+__pycache__/
+flashrank_models/
+hf_cache/
+.vscode/

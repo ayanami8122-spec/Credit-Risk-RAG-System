@@ -1,0 +1,7 @@
+1.完成整体的知识库建立 1
+2.引入工业级“积木”（LangChain + 向量数据库）
+    加入rerank 1 ，semantic chunking（当前文本前后关联度大且层层相扣，所以依照语义切割无法分割出较好切片），hierarchical retrieval 1
+3.给它套上一个前端壳子（Streamlit） 1
+4.SQLite 持久化
+5.citation/source 展示
+6.GitHub + README + 架构图
