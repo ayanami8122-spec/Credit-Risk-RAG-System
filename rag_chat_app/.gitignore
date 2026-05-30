@@ -5,3 +5,4 @@ flashrank_models/
 hf_cache/
 .vscode/
 *.db
+parent_store/
