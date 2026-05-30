@@ -56,7 +56,11 @@ def get_rag_chain():
     # 初始化/加载本地 Chroma 数据库
     CHROMA_DB_DIR = "./chroma_db"
     vectorstore = Chroma(persist_directory=CHROMA_DB_DIR, embedding_function=embeddings)
-    db_exists = os.path.exists(CHROMA_DB_DIR) and os.path.exists(os.path.join(CHROMA_DB_DIR, "chroma.sqlite3")) and len(os.listdir(CHROMA_DB_DIR)) > 0
+    try:
+        chroma_doc_count = vectorstore._collection.count()
+    except Exception:
+        chroma_doc_count = 0
+    db_exists = chroma_doc_count > 0
 
     # 初始化用于存放父块完整文本的内存存储器
     fs = LocalFileStore("./parent_store")
@@ -157,6 +161,26 @@ def _answer_piece_to_str(piece: Any) -> str:
     return str(piece)
 
 
+def _normalize_retrieved_docs(context: Any) -> list[Any]:
+    if not context:
+        return []
+    if isinstance(context, list):
+        return [doc for doc in context if getattr(doc, "page_content", None)]
+    return []
+
+
+def _notify_retrieval_done(
+    on_retrieval_done: Any | None,
+    context: Any,
+    notified: bool,
+) -> bool:
+    if notified or on_retrieval_done is None:
+        return notified
+    docs = _normalize_retrieved_docs(context)
+    on_retrieval_done(docs)
+    return True
+
+
 def _yield_answer_deltas_from_stream(
     rag_chain: Any,
     question: str,
@@ -169,10 +193,10 @@ def _yield_answer_deltas_from_stream(
     input_data = {"input": question, "chat_history": chat_history or []}
 
     for chunk in rag_chain.stream(input_data):
-        if chunk.get("context") is not None and not retrieval_notified:
-            retrieval_notified = True
-            if on_retrieval_done:
-                on_retrieval_done()
+        if "context" in chunk:
+            retrieval_notified = _notify_retrieval_done(
+                on_retrieval_done, chunk.get("context"), retrieval_notified
+            )
         if "answer" not in chunk:
             continue
         text = _answer_piece_to_str(chunk["answer"])
@@ -188,49 +212,18 @@ def _yield_answer_deltas_from_stream(
             yield delta
 
 
-def _yield_answer_deltas_from_events(
-    rag_chain: Any,
-    question: str,
-    chat_history: list | None = None,
-    on_retrieval_done: Any | None = None,
-) -> Iterator[str]:
-    retrieval_notified = False
-
-    input_data = {"input": question, "chat_history": chat_history or []}
-
-    for event in rag_chain.stream_events(input_data, version="v2"):
-        if event.get("event") != "on_chat_model_stream":
-            continue
-        if not retrieval_notified:
-            retrieval_notified = True
-            if on_retrieval_done:
-                on_retrieval_done()
-        chunk = event.get("data", {}).get("chunk")
-        text = _answer_piece_to_str(chunk)
-        if text:
-            yield text
-
-
 def iter_answer_deltas(
     rag_chain: Any,
     question: str,
     chat_history: list | None = None,
     on_retrieval_done: Any | None = None,
 ) -> Iterator[str]:
-    """产出可交给 st.write_stream 的增量 answer 文本。"""
-    got_any = False
-    try:
-        for token in _yield_answer_deltas_from_events(
-            rag_chain, question, chat_history, on_retrieval_done
-        ):
-            got_any = True
-            yield token
-    except Exception:
-        got_any = False
+    """产出可交给 st.write_stream 的增量 answer 文本。
 
-    if got_any:
-        return
-
+    说明：当前 LangChain 的 retrieval_chain (RunnableSequence) 不支持
+    同步 stream_events(version='v2')，因此统一走 stream() 并在 context 分片
+    回调检索文档。
+    """
     yield from _yield_answer_deltas_from_stream(
         rag_chain, question, chat_history, on_retrieval_done
     )

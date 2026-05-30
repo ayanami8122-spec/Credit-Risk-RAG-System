@@ -1,22 +1,18 @@
 import sys
 import traceback
 from pathlib import Path
+
+_APP_DIR = Path(__file__).resolve().parent
+if str(_APP_DIR) not in sys.path:
+    sys.path.insert(0, str(_APP_DIR))
+
 import streamlit as st
-import streamlit.components.v1 as components
 from langchain_core.messages import HumanMessage, AIMessage
-import session_manager as sm 
+import session_manager as sm
 import database as db
 from test import get_rag_chain, iter_answer_deltas
 
 db.init_db()
-
-
-_APP_DIR = Path(__file__).resolve().parent
-
-
-if str(_APP_DIR) not in sys.path:
-
-    sys.path.insert(0, str(_APP_DIR))
 
 
 st.set_page_config(
@@ -73,7 +69,7 @@ with st.sidebar:
     updateClock();
     </script>
     """
-    components.html(clock_html, height=40)
+    st.html(clock_html)
     
     st.write("---")
 
@@ -180,22 +176,39 @@ if query_string := st.chat_input("请输入具体问题："):
 
             try:
 
-                with st.spinner("正在检索知识库并获取答案…"):
+                retrieved_docs: list = []
 
+                def handle_retrieval(docs: list) -> None:
+                    if docs:
+                        retrieved_docs.clear()
+                        retrieved_docs.extend(docs)
+
+                with st.status("正在检索知识库并流式生成回答…", expanded=True) as status:
                     extracted_answer = st.write_stream(
                         iter_answer_deltas(
-
                             rag_pipeline,
                             query_string,
                             chat_history=formatted_history,
-
+                            on_retrieval_done=handle_retrieval,
                         )
                     )
+                    status.update(label="回答完成", state="complete", expanded=True)
 
                 if isinstance(extracted_answer, list):
-
                     extracted_answer = "".join(map(str, extracted_answer))
 
+                with st.expander("🔍 查看参考来源 (知识库匹配结果)", expanded=False):
+                    if retrieved_docs:
+                        for idx, doc in enumerate(retrieved_docs, 1):
+                            source_name = doc.metadata.get("source", "未知源")
+                            st.markdown(f"**【数据源 {idx}】** `{source_name}`")
+                            preview = doc.page_content[:150].replace("\n", " ")
+                            st.caption(preview + ("..." if len(doc.page_content) > 150 else ""))
+                            st.divider()
+                    else:
+                        st.caption("本次未检索到可展示的文档片段（向量库可能为空或查询未命中）。")
+
+                # 保存到数据库
                 if extracted_answer:
 
                     sm.add_message_to_current("assistant", extracted_answer)
