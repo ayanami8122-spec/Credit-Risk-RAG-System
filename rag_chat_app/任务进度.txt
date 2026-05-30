@@ -4,4 +4,4 @@
 3.给它套上一个前端壳子（Streamlit） 1
 4.SQLite 持久化 1
 5.citation/source 展示 1
-6.GitHub + README + 架构图
+6.GitHub + README + 架构图 1

@@ -38,33 +38,19 @@ rag_chat_app/
 
 ## 4、rag_chat_app 全栈系统架构图
 
+- **前端 UI 层 (Streamlit)**
 
-[前端 UI 层 (Streamlit)] 
-       │ 
-       ├─> 输入: 用户多轮连续追问 (带指代词)
-       ├─> 渲染: 流式打字机效果输出
-       └─> 状态: 侧边栏多会话管理，自动重置焦点兜底
-             │
-             ▼
-[会话持久层 (SQLite + Session Manager)]
-       │
-       ├─> chat_sessions (外键级联，保存多组会话)
-       └─> chat_messages (清洗系统欢迎语，构建格式化上下文)
-             │
-             ▼
-[检索增强后端 (LangChain RAG Pipeline)]
-       │
-       ├─ 1. 历史感知重写 (History-Aware Retriever)
-       │     └─ 结合上下文，将 "它" 等代词消解为独立的高质量 Query
-       │
-       ├─ 2. 向量粗筛 (Chroma DB + BGE-Small-zh-v1.5)
-       │     └─ 高频语义子块检索 (Child Chunks: 300 tokens, k=15)
-       │
-       ├─ 3. 层级回溯 (ParentDocumentRetriever)
-       │     └─ 通过 KV Docstore (LocalFileStore) 找回父级上下文 (1200 tokens)
-       │
-       ├─ 4. 交叉重排 (Flashrank Rerank)
-       │     └─ MS-Marco 模型全文本逐字交互打分，精选高价值卡片 (Top-5)
-       │
-       └─ 5. LLM 生成 (DeepSeek API)
-             └─ 严格遵循《已知知识库》系统 Prompt 进行严谨风控解答，流式返回
+  - **输入：**  接收用户多轮连续追问（支持指代消解上下文）。
+  - **渲染：**  采用 Streamlit `write_stream` 实现流式打字机输出效果。
+  - **状态：**  侧边栏多会话持久化切换，配合自动重置焦点逻辑。
+- **会话持久层 (SQLite + Session Manager)**
+
+  - **数据模型：**  基于 `chat_sessions` 与 `chat_messages` 的外键级联存储。
+  - **逻辑：**  自动清洗系统欢迎语，动态构建格式化对话历史。
+- **检索增强后端 (LangChain RAG Pipeline)**
+
+  1. **历史感知重写 (History-Aware Retriever)：**  结合 Chat History 将模糊 Query 消解为语义完备的独立查询。
+  2. **向量粗筛 (Chroma DB + BGE-Small)：**  针对 Child Chunks (300 tokens) 进行高频语义检索 (k\=15)。
+  3. **层级回溯 (ParentDocumentRetriever)：**  通过 LocalFileStore 找回父级上下文 (1200 tokens)，解决碎片化信息丢失问题。
+  4. **交叉重排 (Flashrank Rerank)：**  使用 MS-Marco 模型对候选文本进行精细化打分，精选 Top-5。
+  5. **LLM 生成 (DeepSeek API)：**  注入系统风控 Prompt，基于已知知识库生成严谨回复。
