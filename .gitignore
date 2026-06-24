@@ -1,0 +1,44 @@
+# --- 环境与密钥 ---
+.env
+.env.*
+!.env.example
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+llm_project/
+*.egg-info/
+dist/
+build/
+
+# --- 编辑器 ---
+.vscode/
+.idea/
+*.swp
+.ipynb_checkpoints/
+pyrightconfig.json
+
+# --- 本地模型与向量库 ---
+hf_cache/
+flashrank_models/
+chroma_db/
+parent_store/
+**/hf_cache/
+**/flashrank_models/
+**/chroma_db/
+**/parent_store/
+
+# --- 数据库与运行产物 ---
+*.db
+*.sqlite3
+*.csv
+*.log
+*.tmp
+eval_results/
+
+# --- 媒体与报告产物 ---
+*.mp4
+*.gif

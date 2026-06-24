@@ -1,0 +1,33 @@
+# Web UI
+streamlit
+
+# LangChain runtime
+langchain
+langchain-classic
+langchain-openai
+langchain-community
+langchain-chroma
+langchain-huggingface
+langchain-text-splitters
+langchain-core
+chromadb
+
+# Retrieval and local models
+sentence-transformers
+transformers
+torch
+flashrank
+
+# Tools and utilities
+python-dotenv
+numexpr
+ddgs
+dashscope
+
+# Evaluation and reports
+ragas
+datasets
+pandas
+matplotlib
+scikit-learn
+xlrd
